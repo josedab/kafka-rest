@@ -34,4 +34,45 @@ public class BadRequestException extends StatusCodeException {
   public BadRequestException(String title, String detail, Throwable cause) {
     super(Status.BAD_REQUEST, title, detail, cause);
   }
+
+  /**
+   * Creates a stackless BadRequestException for better performance in common error paths.
+   *
+   * <p>Use this method when the exception is thrown for expected, high-frequency validation errors
+   * where stack traces provide little debugging value. For unexpected errors or debugging,
+   * use the regular constructors.
+   *
+   * @param detail the error detail message
+   * @return a stackless BadRequestException
+   */
+  public static BadRequestException withoutStackTrace(String detail) {
+    return new StacklessBadRequestException("Bad Request", detail);
+  }
+
+  /**
+   * Creates a stackless BadRequestException with custom title for better performance.
+   *
+   * @param title the error title
+   * @param detail the error detail message
+   * @return a stackless BadRequestException
+   */
+  public static BadRequestException withoutStackTrace(String title, String detail) {
+    return new StacklessBadRequestException(title, detail);
+  }
+
+  /**
+   * A BadRequestException variant that skips stack trace capture for performance.
+   * Used in high-frequency validation error paths.
+   */
+  private static class StacklessBadRequestException extends BadRequestException {
+
+    StacklessBadRequestException(String title, String detail) {
+      super(title, detail);
+    }
+
+    @Override
+    public synchronized Throwable fillInStackTrace() {
+      return this;
+    }
+  }
 }

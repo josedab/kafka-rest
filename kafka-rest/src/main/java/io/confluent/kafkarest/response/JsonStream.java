@@ -167,7 +167,7 @@ public final class JsonStream<T> implements Closeable {
 
     private void validateSize(long add) {
       if (produceRequestByteCounter.addAndGet(add) > sizeThreshold) {
-        throw new ProduceRequestTooLargeException();
+        throw ProduceRequestTooLargeException.withoutStackTrace();
       }
     }
   }
