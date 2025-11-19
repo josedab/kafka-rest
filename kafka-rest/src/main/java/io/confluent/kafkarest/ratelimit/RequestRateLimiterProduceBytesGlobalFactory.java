@@ -15,6 +15,7 @@
 
 package io.confluent.kafkarest.ratelimit;
 
+import io.confluent.kafkarest.KafkaRestConfig;
 import io.confluent.kafkarest.config.ConfigModule.ProduceRateLimitBytesGlobalConfig;
 import io.confluent.kafkarest.config.ConfigModule.RateLimitTimeoutConfig;
 import jakarta.inject.Inject;
@@ -26,7 +27,8 @@ public class RequestRateLimiterProduceBytesGlobalFactory extends RequestRateLimi
   public RequestRateLimiterProduceBytesGlobalFactory(
       RateLimitBackend backend,
       @ProduceRateLimitBytesGlobalConfig Integer permitsPerSecond,
-      @RateLimitTimeoutConfig Duration timeout) {
-    super(backend, permitsPerSecond, timeout);
+      @RateLimitTimeoutConfig Duration timeout,
+      KafkaRestConfig config) {
+    super(backend, permitsPerSecond, timeout, config);
   }
 }

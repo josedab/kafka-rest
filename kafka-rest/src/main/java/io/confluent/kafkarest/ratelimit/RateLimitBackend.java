@@ -22,5 +22,13 @@ public enum RateLimitBackend {
   GUAVA,
 
   /** @see <a href="https://resilience4j.readme.io/docs/ratelimiter">Resilience4j RateLimiter</a> */
-  RESILIENCE4J
+  RESILIENCE4J,
+
+  /**
+   * Distributed rate limiting using Redis.
+   *
+   * <p>Uses a sliding window algorithm implemented with Redis sorted sets and Lua scripts for
+   * atomic operations. Coordinates rate limits across multiple REST Proxy instances.
+   */
+  REDIS
 }

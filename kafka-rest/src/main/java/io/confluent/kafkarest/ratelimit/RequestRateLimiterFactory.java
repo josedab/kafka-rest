@@ -17,6 +17,7 @@ package io.confluent.kafkarest.ratelimit;
 
 import static java.util.Objects.requireNonNull;
 
+import io.confluent.kafkarest.KafkaRestConfig;
 import java.time.Duration;
 import org.glassfish.hk2.api.Factory;
 
@@ -25,11 +26,21 @@ abstract class RequestRateLimiterFactory implements Factory<RequestRateLimiter> 
   private final RateLimitBackend backend;
   private final int permitsPerSecond;
   private final Duration timeout;
+  private final KafkaRestConfig config;
 
   RequestRateLimiterFactory(RateLimitBackend backend, Integer permitsPerSecond, Duration timeout) {
+    this(backend, permitsPerSecond, timeout, null);
+  }
+
+  RequestRateLimiterFactory(
+      RateLimitBackend backend,
+      Integer permitsPerSecond,
+      Duration timeout,
+      KafkaRestConfig config) {
     this.backend = requireNonNull(backend);
     this.permitsPerSecond = permitsPerSecond;
     this.timeout = requireNonNull(timeout);
+    this.config = config;
   }
 
   @Override
@@ -39,6 +50,25 @@ abstract class RequestRateLimiterFactory implements Factory<RequestRateLimiter> 
         return GuavaRateLimiter.create(permitsPerSecond, timeout);
       case RESILIENCE4J:
         return Resilience4JRateLimiter.create(permitsPerSecond, timeout);
+      case REDIS:
+        if (config == null) {
+          throw new IllegalStateException(
+              "KafkaRestConfig is required for Redis rate limiting backend");
+        }
+        return ResilientRedisRateLimiter.create(
+            config.getRateLimitRedisHost(),
+            config.getRateLimitRedisPort(),
+            config.getRateLimitRedisPassword(),
+            config.isRateLimitRedisSslEnabled(),
+            config.isRateLimitRedisClusterEnabled(),
+            config.getRateLimitRedisClusterNodes(),
+            config.getRateLimitRedisKeyPrefix(),
+            permitsPerSecond,
+            config.getRateLimitRedisWindowSeconds(),
+            config.getRateLimitRedisTimeout(),
+            timeout,
+            config.isRateLimitRedisFallbackEnabled(),
+            config.getRateLimitRedisFallbackBackend());
       default:
         throw new AssertionError("Unknown enum constant: " + backend);
     }

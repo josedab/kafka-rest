@@ -432,8 +432,9 @@ public class KafkaRestConfig extends RestConfig {
 
   public static final String RATE_LIMIT_BACKEND_CONFIG = "rate.limit.backend";
   private static final String RATE_LIMIT_BACKEND_DOC =
-      "The rate-limiting backend to use. The options are 'guava' and 'resilience4j'. Default is "
-          + "'guava'.";
+      "The rate-limiting backend to use. The options are 'guava', 'resilience4j', and 'redis'. "
+          + "The 'redis' backend provides distributed rate limiting across multiple instances. "
+          + "Default is 'guava'.";
   private static final String RATE_LIMIT_BACKEND_DEFAULT = "guava";
 
   public static final String RATE_LIMIT_PERMITS_PER_SEC_CONFIG = "rate.limit.permits.per.sec";
@@ -478,6 +479,69 @@ public class KafkaRestConfig extends RestConfig {
       "How long after the request a cluster remains in the cache storing rateLimits. Default is "
           + "1 hour.";
   public static final String RATE_LIMIT_PER_CLUSTER_CACHE_EXPIRY_MS_DEFAULT = "3600000";
+
+  // Redis rate limiting configuration
+  public static final String RATE_LIMIT_REDIS_HOST_CONFIG = "rate.limit.redis.host";
+  private static final String RATE_LIMIT_REDIS_HOST_DOC =
+      "The hostname of the Redis server for distributed rate limiting.";
+  private static final String RATE_LIMIT_REDIS_HOST_DEFAULT = "localhost";
+
+  public static final String RATE_LIMIT_REDIS_PORT_CONFIG = "rate.limit.redis.port";
+  private static final String RATE_LIMIT_REDIS_PORT_DOC =
+      "The port of the Redis server for distributed rate limiting.";
+  private static final int RATE_LIMIT_REDIS_PORT_DEFAULT = 6379;
+
+  public static final String RATE_LIMIT_REDIS_PASSWORD_CONFIG = "rate.limit.redis.password";
+  private static final String RATE_LIMIT_REDIS_PASSWORD_DOC =
+      "The password for Redis authentication. Leave empty if no authentication is required.";
+  private static final String RATE_LIMIT_REDIS_PASSWORD_DEFAULT = "";
+
+  public static final String RATE_LIMIT_REDIS_SSL_ENABLED_CONFIG = "rate.limit.redis.ssl.enabled";
+  private static final String RATE_LIMIT_REDIS_SSL_ENABLED_DOC =
+      "Whether to use SSL/TLS for Redis connections.";
+  private static final boolean RATE_LIMIT_REDIS_SSL_ENABLED_DEFAULT = false;
+
+  public static final String RATE_LIMIT_REDIS_CLUSTER_ENABLED_CONFIG =
+      "rate.limit.redis.cluster.enabled";
+  private static final String RATE_LIMIT_REDIS_CLUSTER_ENABLED_DOC =
+      "Whether to connect to a Redis cluster instead of a single node.";
+  private static final boolean RATE_LIMIT_REDIS_CLUSTER_ENABLED_DEFAULT = false;
+
+  public static final String RATE_LIMIT_REDIS_CLUSTER_NODES_CONFIG =
+      "rate.limit.redis.cluster.nodes";
+  private static final String RATE_LIMIT_REDIS_CLUSTER_NODES_DOC =
+      "Comma-separated list of Redis cluster nodes in host:port format. "
+          + "Example: host1:6379,host2:6379,host3:6379";
+  private static final String RATE_LIMIT_REDIS_CLUSTER_NODES_DEFAULT = "";
+
+  public static final String RATE_LIMIT_REDIS_WINDOW_SECONDS_CONFIG =
+      "rate.limit.redis.window.seconds";
+  private static final String RATE_LIMIT_REDIS_WINDOW_SECONDS_DOC =
+      "The sliding window size in seconds for distributed rate limiting.";
+  private static final int RATE_LIMIT_REDIS_WINDOW_SECONDS_DEFAULT = 1;
+
+  public static final String RATE_LIMIT_REDIS_FALLBACK_ENABLED_CONFIG =
+      "rate.limit.redis.fallback.enabled";
+  private static final String RATE_LIMIT_REDIS_FALLBACK_ENABLED_DOC =
+      "Whether to fallback to a local rate limiter when Redis is unavailable.";
+  private static final boolean RATE_LIMIT_REDIS_FALLBACK_ENABLED_DEFAULT = true;
+
+  public static final String RATE_LIMIT_REDIS_FALLBACK_BACKEND_CONFIG =
+      "rate.limit.redis.fallback.backend";
+  private static final String RATE_LIMIT_REDIS_FALLBACK_BACKEND_DOC =
+      "The fallback rate limiter backend to use when Redis is unavailable. "
+          + "Options are 'guava' and 'resilience4j'.";
+  private static final String RATE_LIMIT_REDIS_FALLBACK_BACKEND_DEFAULT = "guava";
+
+  public static final String RATE_LIMIT_REDIS_TIMEOUT_MS_CONFIG = "rate.limit.redis.timeout.ms";
+  private static final String RATE_LIMIT_REDIS_TIMEOUT_MS_DOC =
+      "Timeout in milliseconds for Redis operations.";
+  private static final long RATE_LIMIT_REDIS_TIMEOUT_MS_DEFAULT = 100;
+
+  public static final String RATE_LIMIT_REDIS_KEY_PREFIX_CONFIG = "rate.limit.redis.key.prefix";
+  private static final String RATE_LIMIT_REDIS_KEY_PREFIX_DOC =
+      "Prefix for Redis keys used in rate limiting. Useful for namespacing in shared Redis.";
+  private static final String RATE_LIMIT_REDIS_KEY_PREFIX_DEFAULT = "kafka-rest";
 
   public static final String STREAMING_CONNECTION_MAX_DURATION_MS =
       "streaming.connection.max.duration.ms";
@@ -891,6 +955,72 @@ public class KafkaRestConfig extends RestConfig {
             Importance.LOW,
             RATE_LIMIT_PER_CLUSTER_CACHE_EXPIRY_MS_DOC)
         .define(
+            RATE_LIMIT_REDIS_HOST_CONFIG,
+            Type.STRING,
+            RATE_LIMIT_REDIS_HOST_DEFAULT,
+            Importance.LOW,
+            RATE_LIMIT_REDIS_HOST_DOC)
+        .define(
+            RATE_LIMIT_REDIS_PORT_CONFIG,
+            Type.INT,
+            RATE_LIMIT_REDIS_PORT_DEFAULT,
+            Importance.LOW,
+            RATE_LIMIT_REDIS_PORT_DOC)
+        .define(
+            RATE_LIMIT_REDIS_PASSWORD_CONFIG,
+            Type.PASSWORD,
+            RATE_LIMIT_REDIS_PASSWORD_DEFAULT,
+            Importance.LOW,
+            RATE_LIMIT_REDIS_PASSWORD_DOC)
+        .define(
+            RATE_LIMIT_REDIS_SSL_ENABLED_CONFIG,
+            Type.BOOLEAN,
+            RATE_LIMIT_REDIS_SSL_ENABLED_DEFAULT,
+            Importance.LOW,
+            RATE_LIMIT_REDIS_SSL_ENABLED_DOC)
+        .define(
+            RATE_LIMIT_REDIS_CLUSTER_ENABLED_CONFIG,
+            Type.BOOLEAN,
+            RATE_LIMIT_REDIS_CLUSTER_ENABLED_DEFAULT,
+            Importance.LOW,
+            RATE_LIMIT_REDIS_CLUSTER_ENABLED_DOC)
+        .define(
+            RATE_LIMIT_REDIS_CLUSTER_NODES_CONFIG,
+            Type.STRING,
+            RATE_LIMIT_REDIS_CLUSTER_NODES_DEFAULT,
+            Importance.LOW,
+            RATE_LIMIT_REDIS_CLUSTER_NODES_DOC)
+        .define(
+            RATE_LIMIT_REDIS_WINDOW_SECONDS_CONFIG,
+            Type.INT,
+            RATE_LIMIT_REDIS_WINDOW_SECONDS_DEFAULT,
+            Importance.LOW,
+            RATE_LIMIT_REDIS_WINDOW_SECONDS_DOC)
+        .define(
+            RATE_LIMIT_REDIS_FALLBACK_ENABLED_CONFIG,
+            Type.BOOLEAN,
+            RATE_LIMIT_REDIS_FALLBACK_ENABLED_DEFAULT,
+            Importance.LOW,
+            RATE_LIMIT_REDIS_FALLBACK_ENABLED_DOC)
+        .define(
+            RATE_LIMIT_REDIS_FALLBACK_BACKEND_CONFIG,
+            Type.STRING,
+            RATE_LIMIT_REDIS_FALLBACK_BACKEND_DEFAULT,
+            Importance.LOW,
+            RATE_LIMIT_REDIS_FALLBACK_BACKEND_DOC)
+        .define(
+            RATE_LIMIT_REDIS_TIMEOUT_MS_CONFIG,
+            Type.LONG,
+            RATE_LIMIT_REDIS_TIMEOUT_MS_DEFAULT,
+            Importance.LOW,
+            RATE_LIMIT_REDIS_TIMEOUT_MS_DOC)
+        .define(
+            RATE_LIMIT_REDIS_KEY_PREFIX_CONFIG,
+            Type.STRING,
+            RATE_LIMIT_REDIS_KEY_PREFIX_DEFAULT,
+            Importance.LOW,
+            RATE_LIMIT_REDIS_KEY_PREFIX_DOC)
+        .define(
             STREAMING_CONNECTION_MAX_DURATION_MS,
             Type.LONG,
             STREAMING_CONNECTION_MAX_DURATION_MS_DEFAULT,
@@ -1203,6 +1333,50 @@ public class KafkaRestConfig extends RestConfig {
 
   public final Duration getRateLimitTimeout() {
     return Duration.ofMillis(getLong(RATE_LIMIT_TIMEOUT_MS_CONFIG));
+  }
+
+  public final String getRateLimitRedisHost() {
+    return getString(RATE_LIMIT_REDIS_HOST_CONFIG);
+  }
+
+  public final int getRateLimitRedisPort() {
+    return getInt(RATE_LIMIT_REDIS_PORT_CONFIG);
+  }
+
+  public final String getRateLimitRedisPassword() {
+    return getPassword(RATE_LIMIT_REDIS_PASSWORD_CONFIG).value();
+  }
+
+  public final boolean isRateLimitRedisSslEnabled() {
+    return getBoolean(RATE_LIMIT_REDIS_SSL_ENABLED_CONFIG);
+  }
+
+  public final boolean isRateLimitRedisClusterEnabled() {
+    return getBoolean(RATE_LIMIT_REDIS_CLUSTER_ENABLED_CONFIG);
+  }
+
+  public final String getRateLimitRedisClusterNodes() {
+    return getString(RATE_LIMIT_REDIS_CLUSTER_NODES_CONFIG);
+  }
+
+  public final int getRateLimitRedisWindowSeconds() {
+    return getInt(RATE_LIMIT_REDIS_WINDOW_SECONDS_CONFIG);
+  }
+
+  public final boolean isRateLimitRedisFallbackEnabled() {
+    return getBoolean(RATE_LIMIT_REDIS_FALLBACK_ENABLED_CONFIG);
+  }
+
+  public final RateLimitBackend getRateLimitRedisFallbackBackend() {
+    return RateLimitBackend.valueOf(getString(RATE_LIMIT_REDIS_FALLBACK_BACKEND_CONFIG).toUpperCase());
+  }
+
+  public final Duration getRateLimitRedisTimeout() {
+    return Duration.ofMillis(getLong(RATE_LIMIT_REDIS_TIMEOUT_MS_CONFIG));
+  }
+
+  public final String getRateLimitRedisKeyPrefix() {
+    return getString(RATE_LIMIT_REDIS_KEY_PREFIX_CONFIG);
   }
 
   public final Duration getStreamingConnectionMaxDuration() {
