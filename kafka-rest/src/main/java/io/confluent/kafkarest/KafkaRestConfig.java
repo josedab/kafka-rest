@@ -234,6 +234,36 @@ public class KafkaRestConfig extends RestConfig {
   public static final ConfigDef.Range PRODUCE_REQUEST_SIZE_LIMIT_MAX_BYTES_VALIDATOR =
       ConfigDef.Range.atLeast(0);
 
+  // Producer pool configuration
+  public static final String PRODUCER_POOL_ENABLED_CONFIG = "producer.pool.enabled";
+  private static final String PRODUCER_POOL_ENABLED_DOC =
+      "Whether to enable producer pooling. When enabled, each topic can have its own producer "
+          + "instance with topic-specific configuration. Default is false.";
+  public static final boolean PRODUCER_POOL_ENABLED_DEFAULT = false;
+
+  public static final String PRODUCER_POOL_MAX_SIZE_CONFIG = "producer.pool.max.size";
+  private static final String PRODUCER_POOL_MAX_SIZE_DOC =
+      "Maximum number of producers in the pool. When the limit is reached, new topics will "
+          + "share an existing producer. Default is 50.";
+  public static final int PRODUCER_POOL_MAX_SIZE_DEFAULT = 50;
+  public static final ConfigDef.Range PRODUCER_POOL_MAX_SIZE_VALIDATOR =
+      ConfigDef.Range.between(1, 1000);
+
+  public static final String PRODUCER_POOL_IDLE_TIMEOUT_MS_CONFIG = "producer.pool.idle.timeout.ms";
+  private static final String PRODUCER_POOL_IDLE_TIMEOUT_MS_DOC =
+      "Duration in milliseconds after which idle producers are cleaned up from the pool. "
+          + "Default is 300000 (5 minutes).";
+  public static final long PRODUCER_POOL_IDLE_TIMEOUT_MS_DEFAULT = 300000;
+  public static final ConfigDef.Range PRODUCER_POOL_IDLE_TIMEOUT_MS_VALIDATOR =
+      ConfigDef.Range.atLeast(0);
+
+  public static final String PRODUCER_POOL_TOPIC_CONFIGS_CONFIG = "producer.pool.topic.configs";
+  private static final String PRODUCER_POOL_TOPIC_CONFIGS_DOC =
+      "JSON map of per-topic producer configuration overrides. Example: "
+          + "{\"high-throughput-topic\": {\"linger.ms\": \"100\", \"batch.size\": \"65536\"}}. "
+          + "Default is empty.";
+  public static final String PRODUCER_POOL_TOPIC_CONFIGS_DEFAULT = "";
+
   public static final String CONSUMER_ITERATOR_TIMEOUT_MS_CONFIG = "consumer.iterator.timeout.ms";
   private static final String CONSUMER_ITERATOR_TIMEOUT_MS_DOC =
       "Timeout for blocking consumer iterator operations. This should be set to a small enough "
@@ -624,6 +654,32 @@ public class KafkaRestConfig extends RestConfig {
             PRODUCE_REQUEST_SIZE_LIMIT_MAX_BYTES_VALIDATOR,
             Importance.LOW,
             PRODUCE_REQUEST_SIZE_LIMIT_MAX_BYTES_DOC)
+        .define(
+            PRODUCER_POOL_ENABLED_CONFIG,
+            Type.BOOLEAN,
+            PRODUCER_POOL_ENABLED_DEFAULT,
+            Importance.MEDIUM,
+            PRODUCER_POOL_ENABLED_DOC)
+        .define(
+            PRODUCER_POOL_MAX_SIZE_CONFIG,
+            Type.INT,
+            PRODUCER_POOL_MAX_SIZE_DEFAULT,
+            PRODUCER_POOL_MAX_SIZE_VALIDATOR,
+            Importance.MEDIUM,
+            PRODUCER_POOL_MAX_SIZE_DOC)
+        .define(
+            PRODUCER_POOL_IDLE_TIMEOUT_MS_CONFIG,
+            Type.LONG,
+            PRODUCER_POOL_IDLE_TIMEOUT_MS_DEFAULT,
+            PRODUCER_POOL_IDLE_TIMEOUT_MS_VALIDATOR,
+            Importance.LOW,
+            PRODUCER_POOL_IDLE_TIMEOUT_MS_DOC)
+        .define(
+            PRODUCER_POOL_TOPIC_CONFIGS_CONFIG,
+            Type.STRING,
+            PRODUCER_POOL_TOPIC_CONFIGS_DEFAULT,
+            Importance.LOW,
+            PRODUCER_POOL_TOPIC_CONFIGS_DOC)
         .define(
             CONSUMER_ITERATOR_TIMEOUT_MS_CONFIG,
             Type.INT,
@@ -1223,6 +1279,22 @@ public class KafkaRestConfig extends RestConfig {
 
   public final boolean isNullRequestBodyAlwaysPublishEmptyRecordEnabled() {
     return getBoolean(NULL_REQUEST_BODY_ALWAYS_PUBLISH_EMPTY_RECORD_CONFIG);
+  }
+
+  public final boolean isProducerPoolEnabled() {
+    return getBoolean(PRODUCER_POOL_ENABLED_CONFIG);
+  }
+
+  public final int getProducerPoolMaxSize() {
+    return getInt(PRODUCER_POOL_MAX_SIZE_CONFIG);
+  }
+
+  public final long getProducerPoolIdleTimeoutMs() {
+    return getLong(PRODUCER_POOL_IDLE_TIMEOUT_MS_CONFIG);
+  }
+
+  public final String getProducerPoolTopicConfigs() {
+    return getString(PRODUCER_POOL_TOPIC_CONFIGS_CONFIG);
   }
 
   public final ImmutableMap<String, Integer> getRateLimitCosts() {

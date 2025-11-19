@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import com.google.common.collect.ImmutableMultimap;
 import com.google.protobuf.ByteString;
 import io.confluent.kafkarest.entities.ProduceResult;
+import io.confluent.kafkarest.producer.ProducerPool;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Arrays;
@@ -32,6 +33,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.apache.kafka.clients.producer.MockProducer;
+import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RoundRobinPartitioner;
 import org.apache.kafka.common.Cluster;
@@ -82,6 +84,7 @@ public class ProduceControllerImplTest {
                   record.headers());
 
   private MockProducer<byte[], byte[]> producer;
+  private ProducerPool producerPool;
   private ProduceController produceController;
 
   @BeforeEach
@@ -93,7 +96,29 @@ public class ProduceControllerImplTest {
             new RoundRobinPartitioner(),
             new ByteArraySerializer(),
             new ByteArraySerializer());
-    produceController = new ProduceControllerImpl(producer);
+    // Create a simple ProducerPool that always returns the mock producer
+    producerPool = new ProducerPool() {
+      @Override
+      public Producer<byte[], byte[]> getProducer(String topicName) {
+        return producer;
+      }
+
+      @Override
+      public int getCurrentSize() {
+        return 1;
+      }
+
+      @Override
+      public int getMaxSize() {
+        return 1;
+      }
+
+      @Override
+      public void shutdown() {
+        producer.close();
+      }
+    };
+    produceController = new ProduceControllerImpl(producerPool);
   }
 
   @Test

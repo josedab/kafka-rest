@@ -15,18 +15,30 @@
 
 package io.confluent.kafkarest.backends.kafka;
 
+import static java.util.Collections.emptyMap;
 import static java.util.Objects.requireNonNull;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.confluent.kafkarest.DefaultKafkaRestContext;
 import io.confluent.kafkarest.KafkaRestConfig;
 import io.confluent.kafkarest.KafkaRestContext;
+import io.confluent.kafkarest.producer.DefaultProducerPool;
+import io.confluent.kafkarest.producer.ProducerPool;
+import io.confluent.kafkarest.producer.ProducerPoolMetrics;
+import io.confluent.kafkarest.producer.SingleProducerPool;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.producer.Producer;
 import org.glassfish.hk2.api.Factory;
 import org.glassfish.hk2.api.TypeLiteral;
 import org.glassfish.hk2.utilities.binding.AbstractBinder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A module to configure access to Kafka.
@@ -37,11 +49,15 @@ import org.glassfish.hk2.utilities.binding.AbstractBinder;
  */
 public final class KafkaModule extends AbstractBinder {
 
+  private static final Logger log = LoggerFactory.getLogger(KafkaModule.class);
+
   @Override
   protected void configure() {
     bindFactory(KafkaRestContextFactory.class).to(KafkaRestContext.class).in(Singleton.class);
 
     bindFactory(AdminFactory.class).to(Admin.class).in(Singleton.class);
+
+    bindFactory(ProducerPoolFactory.class).to(ProducerPool.class).in(Singleton.class);
 
     bindFactory(ProducerFactory.class)
         .to(new TypeLiteral<Producer<byte[], byte[]>>() {})
@@ -86,22 +102,80 @@ public final class KafkaModule extends AbstractBinder {
     }
   }
 
-  private static final class ProducerFactory implements Factory<Producer<byte[], byte[]>> {
+  private static final class ProducerPoolFactory implements Factory<ProducerPool> {
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
+    private final KafkaRestConfig config;
     private final KafkaRestContext context;
 
     @Inject
-    private ProducerFactory(KafkaRestContext context) {
+    private ProducerPoolFactory(KafkaRestConfig config, KafkaRestContext context) {
+      this.config = requireNonNull(config);
       this.context = requireNonNull(context);
     }
 
     @Override
+    public ProducerPool provide() {
+      if (config.isProducerPoolEnabled()) {
+        log.info("Producer pooling enabled, creating DefaultProducerPool");
+        Map<String, Object> producerConfigs = config.getProducerConfigs();
+        Map<String, Map<String, Object>> topicConfigs = parseTopicConfigs(
+            config.getProducerPoolTopicConfigs());
+        int maxPoolSize = config.getProducerPoolMaxSize();
+        Duration idleTimeout = Duration.ofMillis(config.getProducerPoolIdleTimeoutMs());
+
+        ProducerPoolMetrics metrics = null;
+        if (config.getMetrics() != null) {
+          metrics = new ProducerPoolMetrics(config, emptyMap());
+        }
+
+        return new DefaultProducerPool(
+            producerConfigs, topicConfigs, maxPoolSize, idleTimeout, metrics);
+      } else {
+        log.info("Producer pooling disabled, using single producer");
+        return new SingleProducerPool(context.getProducer());
+      }
+    }
+
+    private Map<String, Map<String, Object>> parseTopicConfigs(String topicConfigsJson) {
+      if (topicConfigsJson == null || topicConfigsJson.trim().isEmpty()) {
+        return new HashMap<>();
+      }
+
+      try {
+        return OBJECT_MAPPER.readValue(
+            topicConfigsJson, new TypeReference<Map<String, Map<String, Object>>>() {});
+      } catch (Exception e) {
+        log.warn("Failed to parse producer.pool.topic.configs, using empty config: {}", e.getMessage());
+        return new HashMap<>();
+      }
+    }
+
+    @Override
+    public void dispose(ProducerPool pool) {
+      pool.shutdown();
+    }
+  }
+
+  private static final class ProducerFactory implements Factory<Producer<byte[], byte[]>> {
+    private final ProducerPool producerPool;
+
+    @Inject
+    private ProducerFactory(ProducerPool producerPool) {
+      this.producerPool = requireNonNull(producerPool);
+    }
+
+    @Override
     public Producer<byte[], byte[]> provide() {
-      return context.getProducer();
+      // Return a producer for the default topic (empty string)
+      // This maintains backward compatibility for code that injects Producer directly
+      return producerPool.getProducer("");
     }
 
     @Override
     public void dispose(Producer<byte[], byte[]> producer) {
-      producer.close();
+      // Producer lifecycle is managed by the pool
+      // Don't close individual producers here
     }
   }
 }

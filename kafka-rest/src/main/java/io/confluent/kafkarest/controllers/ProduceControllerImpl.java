@@ -20,6 +20,7 @@ import static java.util.Objects.requireNonNull;
 import com.google.common.collect.Multimap;
 import com.google.protobuf.ByteString;
 import io.confluent.kafkarest.entities.ProduceResult;
+import io.confluent.kafkarest.producer.ProducerPool;
 import jakarta.inject.Inject;
 import java.time.Instant;
 import java.util.Optional;
@@ -35,11 +36,11 @@ final class ProduceControllerImpl implements ProduceController {
 
   private static final Logger log = LoggerFactory.getLogger(ProduceController.class);
 
-  private final Producer<byte[], byte[]> producer;
+  private final ProducerPool producerPool;
 
   @Inject
-  ProduceControllerImpl(Producer<byte[], byte[]> producer) {
-    this.producer = requireNonNull(producer);
+  ProduceControllerImpl(ProducerPool producerPool) {
+    this.producerPool = requireNonNull(producerPool);
   }
 
   @Override
@@ -52,7 +53,11 @@ final class ProduceControllerImpl implements ProduceController {
       Optional<ByteString> value,
       Instant timestamp) {
     CompletableFuture<ProduceResult> result = new CompletableFuture<>();
-    log.debug("Producing to kafka");
+    log.debug("Producing to kafka topic: {}", topicName);
+
+    // Get a topic-specific producer from the pool
+    Producer<byte[], byte[]> producer = producerPool.getProducer(topicName);
+
     producer.send(
         new ProducerRecord<>(
             topicName,
