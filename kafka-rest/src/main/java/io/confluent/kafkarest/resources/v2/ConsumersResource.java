@@ -38,6 +38,7 @@ import io.confluent.kafkarest.entities.v2.CreateConsumerInstanceResponse;
 import io.confluent.kafkarest.entities.v2.JsonConsumerRecord;
 import io.confluent.kafkarest.entities.v2.SchemaConsumerRecord;
 import io.confluent.kafkarest.extension.ResourceAccesslistFeature.ResourceName;
+import io.confluent.kafkarest.v2.AsyncConsumerManager;
 import io.confluent.kafkarest.v2.BinaryKafkaConsumerState;
 import io.confluent.kafkarest.v2.JsonKafkaConsumerState;
 import io.confluent.kafkarest.v2.KafkaConsumerManager;
@@ -106,11 +107,19 @@ public final class ConsumersResource {
     if (config == null) {
       config = CreateConsumerInstanceRequest.PROTOTYPE;
     }
-    String instanceId =
-        context
-            .get()
-            .getKafkaConsumerManager()
-            .createConsumer(group, config.toConsumerInstanceConfig());
+
+    String instanceId;
+    AsyncConsumerManager asyncManager = context.get().getAsyncConsumerManager();
+    if (asyncManager != null) {
+      instanceId = asyncManager.createConsumer(group, config.toConsumerInstanceConfig());
+    } else {
+      instanceId =
+          context
+              .get()
+              .getKafkaConsumerManager()
+              .createConsumer(group, config.toConsumerInstanceConfig());
+    }
+
     String instanceBaseUri =
         UriUtils.absoluteUri(
             context.get().getConfig(), uriInfo, "consumers", group, "instances", instanceId);
@@ -123,7 +132,12 @@ public final class ConsumersResource {
   @ResourceName("api.v2.consumers.delete")
   public void deleteGroup(
       final @PathParam("group") String group, final @PathParam("instance") String instance) {
-    context.get().getKafkaConsumerManager().deleteConsumer(group, instance);
+    AsyncConsumerManager asyncManager = context.get().getAsyncConsumerManager();
+    if (asyncManager != null) {
+      asyncManager.deleteConsumer(group, instance);
+    } else {
+      context.get().getKafkaConsumerManager().deleteConsumer(group, instance);
+    }
   }
 
   @POST
@@ -136,7 +150,12 @@ public final class ConsumersResource {
       final @PathParam("instance") String instance,
       @Valid @NotNull ConsumerSubscriptionRecord subscription) {
     try {
-      context.get().getKafkaConsumerManager().subscribe(group, instance, subscription);
+      AsyncConsumerManager asyncManager = context.get().getAsyncConsumerManager();
+      if (asyncManager != null) {
+        asyncManager.subscribe(group, instance, subscription);
+      } else {
+        context.get().getKafkaConsumerManager().subscribe(group, instance, subscription);
+      }
     } catch (java.lang.IllegalStateException e) {
       throw Errors.illegalStateException(e);
     }
@@ -150,6 +169,10 @@ public final class ConsumersResource {
       @jakarta.ws.rs.core.Context UriInfo uriInfo,
       final @PathParam("group") String group,
       final @PathParam("instance") String instance) {
+    AsyncConsumerManager asyncManager = context.get().getAsyncConsumerManager();
+    if (asyncManager != null) {
+      return asyncManager.subscription(group, instance);
+    }
     return context.get().getKafkaConsumerManager().subscription(group, instance);
   }
 
@@ -161,7 +184,12 @@ public final class ConsumersResource {
       @jakarta.ws.rs.core.Context UriInfo uriInfo,
       final @PathParam("group") String group,
       final @PathParam("instance") String instance) {
-    context.get().getKafkaConsumerManager().unsubscribe(group, instance);
+    AsyncConsumerManager asyncManager = context.get().getAsyncConsumerManager();
+    if (asyncManager != null) {
+      asyncManager.unsubscribe(group, instance);
+    } else {
+      context.get().getKafkaConsumerManager().unsubscribe(group, instance);
+    }
   }
 
   @GET
@@ -279,24 +307,39 @@ public final class ConsumersResource {
       final @PathParam("instance") String instance,
       @QueryParam("async") @DefaultValue("false") String async,
       @Valid ConsumerOffsetCommitRequest offsetCommitRequest) {
-    context
-        .get()
-        .getKafkaConsumerManager()
-        .commitOffsets(
-            group,
-            instance,
-            async,
-            offsetCommitRequest,
-            new KafkaConsumerManager.CommitCallback() {
-              @Override
-              public void onCompletion(List<TopicPartitionOffset> offsets, Exception e) {
-                if (e != null) {
-                  asyncResponse.resume(e);
+
+    AsyncConsumerManager asyncManager = context.get().getAsyncConsumerManager();
+    if (asyncManager != null) {
+      asyncManager
+          .commitOffsets(group, instance, async, offsetCommitRequest)
+          .whenComplete(
+              (offsets, error) -> {
+                if (error != null) {
+                  asyncResponse.resume(error);
                 } else {
                   asyncResponse.resume(CommitOffsetsResponse.fromOffsets(offsets));
                 }
-              }
-            });
+              });
+    } else {
+      context
+          .get()
+          .getKafkaConsumerManager()
+          .commitOffsets(
+              group,
+              instance,
+              async,
+              offsetCommitRequest,
+              new KafkaConsumerManager.CommitCallback() {
+                @Override
+                public void onCompletion(List<TopicPartitionOffset> offsets, Exception e) {
+                  if (e != null) {
+                    asyncResponse.resume(e);
+                  } else {
+                    asyncResponse.resume(CommitOffsetsResponse.fromOffsets(offsets));
+                  }
+                }
+              });
+    }
   }
 
   @GET
@@ -309,6 +352,10 @@ public final class ConsumersResource {
       @Valid ConsumerCommittedRequest request) {
     if (request == null) {
       throw Errors.partitionNotFoundException();
+    }
+    AsyncConsumerManager asyncManager = context.get().getAsyncConsumerManager();
+    if (asyncManager != null) {
+      return asyncManager.committed(group, instance, request);
     }
     return context.get().getKafkaConsumerManager().committed(group, instance, request);
   }
@@ -323,7 +370,12 @@ public final class ConsumersResource {
       final @PathParam("instance") String instance,
       @Valid @NotNull ConsumerSeekToRequest seekToRequest) {
     try {
-      context.get().getKafkaConsumerManager().seekToBeginning(group, instance, seekToRequest);
+      AsyncConsumerManager asyncManager = context.get().getAsyncConsumerManager();
+      if (asyncManager != null) {
+        asyncManager.seekToBeginning(group, instance, seekToRequest);
+      } else {
+        context.get().getKafkaConsumerManager().seekToBeginning(group, instance, seekToRequest);
+      }
     } catch (java.lang.IllegalStateException e) {
       throw Errors.illegalStateException(e);
     }
@@ -339,7 +391,12 @@ public final class ConsumersResource {
       final @PathParam("instance") String instance,
       @Valid @NotNull ConsumerSeekToRequest seekToRequest) {
     try {
-      context.get().getKafkaConsumerManager().seekToEnd(group, instance, seekToRequest);
+      AsyncConsumerManager asyncManager = context.get().getAsyncConsumerManager();
+      if (asyncManager != null) {
+        asyncManager.seekToEnd(group, instance, seekToRequest);
+      } else {
+        context.get().getKafkaConsumerManager().seekToEnd(group, instance, seekToRequest);
+      }
     } catch (java.lang.IllegalStateException e) {
       throw Errors.illegalStateException(e);
     }
@@ -355,7 +412,12 @@ public final class ConsumersResource {
       final @PathParam("instance") String instance,
       @Valid @NotNull ConsumerSeekRequest request) {
     try {
-      context.get().getKafkaConsumerManager().seek(group, instance, request);
+      AsyncConsumerManager asyncManager = context.get().getAsyncConsumerManager();
+      if (asyncManager != null) {
+        asyncManager.seek(group, instance, request);
+      } else {
+        context.get().getKafkaConsumerManager().seek(group, instance, request);
+      }
     } catch (java.lang.IllegalStateException e) {
       throw Errors.illegalStateException(e);
     }
@@ -371,7 +433,12 @@ public final class ConsumersResource {
       final @PathParam("instance") String instance,
       @Valid @NotNull ConsumerAssignmentRequest assignmentRequest) {
     try {
-      context.get().getKafkaConsumerManager().assign(group, instance, assignmentRequest);
+      AsyncConsumerManager asyncManager = context.get().getAsyncConsumerManager();
+      if (asyncManager != null) {
+        asyncManager.assign(group, instance, assignmentRequest);
+      } else {
+        context.get().getKafkaConsumerManager().assign(group, instance, assignmentRequest);
+      }
     } catch (java.lang.IllegalStateException e) {
       throw Errors.illegalStateException(e);
     }
@@ -385,6 +452,10 @@ public final class ConsumersResource {
       @jakarta.ws.rs.core.Context UriInfo uriInfo,
       final @PathParam("group") String group,
       final @PathParam("instance") String instance) {
+    AsyncConsumerManager asyncManager = context.get().getAsyncConsumerManager();
+    if (asyncManager != null) {
+      return asyncManager.assignment(group, instance);
+    }
     return context.get().getKafkaConsumerManager().assignment(group, instance);
   }
 
@@ -399,26 +470,44 @@ public final class ConsumersResource {
       Function<ConsumerRecord<ClientKeyT, ClientValueT>, ?> toJsonWrapper) {
     maxBytes = (maxBytes <= 0) ? Long.MAX_VALUE : maxBytes;
 
-    context
-        .get()
-        .getKafkaConsumerManager()
-        .readRecords(
-            group,
-            instance,
-            consumerStateType,
-            timeout,
-            maxBytes,
-            new ConsumerReadCallback<ClientKeyT, ClientValueT>() {
-              @Override
-              public void onCompletion(
-                  List<ConsumerRecord<ClientKeyT, ClientValueT>> records, Exception e) {
-                if (e != null) {
-                  asyncResponse.resume(e);
+    // Check if async consumers are enabled
+    AsyncConsumerManager asyncManager = context.get().getAsyncConsumerManager();
+    if (asyncManager != null) {
+      // Use async consumer manager with CompletableFuture
+      asyncManager
+          .readRecords(group, instance, consumerStateType, timeout, maxBytes)
+          .whenComplete(
+              (records, error) -> {
+                if (error != null) {
+                  asyncResponse.resume(error);
                 } else {
                   asyncResponse.resume(
                       records.stream().map(toJsonWrapper).collect(Collectors.toList()));
                 }
-              }
-            });
+              });
+    } else {
+      // Use traditional callback-based consumer manager
+      context
+          .get()
+          .getKafkaConsumerManager()
+          .readRecords(
+              group,
+              instance,
+              consumerStateType,
+              timeout,
+              maxBytes,
+              new ConsumerReadCallback<ClientKeyT, ClientValueT>() {
+                @Override
+                public void onCompletion(
+                    List<ConsumerRecord<ClientKeyT, ClientValueT>> records, Exception e) {
+                  if (e != null) {
+                    asyncResponse.resume(e);
+                  } else {
+                    asyncResponse.resume(
+                        records.stream().map(toJsonWrapper).collect(Collectors.toList()));
+                  }
+                }
+              });
+    }
   }
 }

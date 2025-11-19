@@ -21,6 +21,7 @@ import static java.util.Objects.requireNonNull;
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import io.confluent.kafkarest.config.SchemaRegistryConfig;
+import io.confluent.kafkarest.v2.AsyncConsumerManager;
 import io.confluent.kafkarest.v2.KafkaConsumerManager;
 import java.net.URI;
 import java.util.List;
@@ -46,6 +47,7 @@ public class DefaultKafkaRestContext implements KafkaRestContext {
 
   private final KafkaRestConfig config;
   private KafkaConsumerManager kafkaConsumerManager;
+  private AsyncConsumerManager asyncConsumerManager;
 
   private SchemaRegistryClient schemaRegistryClient;
 
@@ -65,6 +67,17 @@ public class DefaultKafkaRestContext implements KafkaRestContext {
       kafkaConsumerManager = new KafkaConsumerManager(config);
     }
     return kafkaConsumerManager;
+  }
+
+  @Override
+  public synchronized AsyncConsumerManager getAsyncConsumerManager() {
+    if (!config.isAsyncConsumerEnabled()) {
+      return null;
+    }
+    if (asyncConsumerManager == null) {
+      asyncConsumerManager = new AsyncConsumerManager(config);
+    }
+    return asyncConsumerManager;
   }
 
   @Override
@@ -116,6 +129,9 @@ public class DefaultKafkaRestContext implements KafkaRestContext {
     log.debug("Shutting down");
     if (kafkaConsumerManager != null) {
       kafkaConsumerManager.shutdown();
+    }
+    if (asyncConsumerManager != null) {
+      asyncConsumerManager.shutdown();
     }
   }
 }

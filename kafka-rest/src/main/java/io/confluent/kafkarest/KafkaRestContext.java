@@ -16,6 +16,7 @@
 package io.confluent.kafkarest;
 
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
+import io.confluent.kafkarest.v2.AsyncConsumerManager;
 import io.confluent.kafkarest.v2.KafkaConsumerManager;
 import java.util.Properties;
 import org.apache.kafka.clients.admin.Admin;
@@ -27,6 +28,15 @@ public interface KafkaRestContext {
   KafkaRestConfig getConfig();
 
   KafkaConsumerManager getKafkaConsumerManager();
+
+  /**
+   * Returns the AsyncConsumerManager if async consumer operations are enabled.
+   *
+   * @return the AsyncConsumerManager, or null if async consumers are not enabled
+   */
+  default AsyncConsumerManager getAsyncConsumerManager() {
+    return null;
+  }
 
   Admin getAdmin();
 

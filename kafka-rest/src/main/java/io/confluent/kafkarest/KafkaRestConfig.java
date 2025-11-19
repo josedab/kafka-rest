@@ -271,6 +271,34 @@ public class KafkaRestConfig extends RestConfig {
       "Amount of idle time before a consumer instance " + "is automatically destroyed.";
   public static final String CONSUMER_INSTANCE_TIMEOUT_MS_DEFAULT = "300000";
 
+  public static final String CONSUMER_ASYNC_ENABLED_CONFIG = "consumer.async.enabled";
+  private static final String CONSUMER_ASYNC_ENABLED_DOC =
+      "Whether to enable async consumer operations using non-blocking patterns. "
+          + "When enabled, consumer read operations use ScheduledExecutorService for polling "
+          + "instead of the traditional thread pool. Default is false.";
+  public static final boolean CONSUMER_ASYNC_ENABLED_DEFAULT = false;
+
+  public static final String CONSUMER_ASYNC_SCHEDULER_THREADS_CONFIG =
+      "consumer.async.scheduler.threads";
+  private static final String CONSUMER_ASYNC_SCHEDULER_THREADS_DOC =
+      "Number of threads in the scheduler for async consumer polling. "
+          + "Default is the number of available processors.";
+  public static final int CONSUMER_ASYNC_SCHEDULER_THREADS_DEFAULT =
+      Runtime.getRuntime().availableProcessors();
+
+  public static final String CONSUMER_ASYNC_POLL_INTERVAL_MS_CONFIG =
+      "consumer.async.poll.interval.ms";
+  private static final String CONSUMER_ASYNC_POLL_INTERVAL_MS_DOC =
+      "Interval in milliseconds between poll attempts for async consumers. Default is 10ms.";
+  public static final int CONSUMER_ASYNC_POLL_INTERVAL_MS_DEFAULT = 10;
+
+  public static final String CONSUMER_ASYNC_MAX_PENDING_POLLS_CONFIG =
+      "consumer.async.max.pending.polls";
+  private static final String CONSUMER_ASYNC_MAX_PENDING_POLLS_DOC =
+      "Maximum number of pending polls allowed across all async consumers. "
+          + "This helps prevent backpressure issues. Default is 1000.";
+  public static final int CONSUMER_ASYNC_MAX_PENDING_POLLS_DEFAULT = 1000;
+
   public static final String SIMPLE_CONSUMER_MAX_POOL_SIZE_CONFIG = "simpleconsumer.pool.size.max";
   private static final String SIMPLE_CONSUMER_MAX_POOL_SIZE_DOC =
       "Maximum number of SimpleConsumers that can be instantiated per broker."
@@ -654,6 +682,33 @@ public class KafkaRestConfig extends RestConfig {
             CONSUMER_INSTANCE_TIMEOUT_MS_DEFAULT,
             Importance.LOW,
             CONSUMER_INSTANCE_TIMEOUT_MS_DOC)
+        .define(
+            CONSUMER_ASYNC_ENABLED_CONFIG,
+            Type.BOOLEAN,
+            CONSUMER_ASYNC_ENABLED_DEFAULT,
+            Importance.MEDIUM,
+            CONSUMER_ASYNC_ENABLED_DOC)
+        .define(
+            CONSUMER_ASYNC_SCHEDULER_THREADS_CONFIG,
+            Type.INT,
+            CONSUMER_ASYNC_SCHEDULER_THREADS_DEFAULT,
+            Range.atLeast(1),
+            Importance.LOW,
+            CONSUMER_ASYNC_SCHEDULER_THREADS_DOC)
+        .define(
+            CONSUMER_ASYNC_POLL_INTERVAL_MS_CONFIG,
+            Type.INT,
+            CONSUMER_ASYNC_POLL_INTERVAL_MS_DEFAULT,
+            Range.atLeast(1),
+            Importance.LOW,
+            CONSUMER_ASYNC_POLL_INTERVAL_MS_DOC)
+        .define(
+            CONSUMER_ASYNC_MAX_PENDING_POLLS_CONFIG,
+            Type.INT,
+            CONSUMER_ASYNC_MAX_PENDING_POLLS_DEFAULT,
+            Range.atLeast(1),
+            Importance.LOW,
+            CONSUMER_ASYNC_MAX_PENDING_POLLS_DOC)
         .define(
             SIMPLE_CONSUMER_MAX_POOL_SIZE_CONFIG,
             Type.INT,
@@ -1191,6 +1246,22 @@ public class KafkaRestConfig extends RestConfig {
 
   public final boolean isSchemaRegistryEnabled() {
     return !getSchemaRegistryConfigs().get(SCHEMA_REGISTRY_URL_CONFIG).equals("");
+  }
+
+  public final boolean isAsyncConsumerEnabled() {
+    return getBoolean(CONSUMER_ASYNC_ENABLED_CONFIG);
+  }
+
+  public final int getAsyncConsumerSchedulerThreads() {
+    return getInt(CONSUMER_ASYNC_SCHEDULER_THREADS_CONFIG);
+  }
+
+  public final int getAsyncConsumerPollIntervalMs() {
+    return getInt(CONSUMER_ASYNC_POLL_INTERVAL_MS_CONFIG);
+  }
+
+  public final int getAsyncConsumerMaxPendingPolls() {
+    return getInt(CONSUMER_ASYNC_MAX_PENDING_POLLS_CONFIG);
   }
 
   public final RateLimitBackend getRateLimitBackend() {
