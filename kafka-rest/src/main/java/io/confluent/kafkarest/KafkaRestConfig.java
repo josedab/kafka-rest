@@ -510,6 +510,33 @@ public class KafkaRestConfig extends RestConfig {
           + "scenario is the default. This configuration property enables the old behaviour.";
   private static final boolean NULL_REQUEST_BODY_ALWAYS_PUBLISH_EMPTY_RECORD_DEFAULT = false;
 
+  public static final String HEALTH_READINESS_TIMEOUT_MS_CONFIG = "health.readiness.timeout.ms";
+  private static final String HEALTH_READINESS_TIMEOUT_MS_DOC =
+      "Timeout in milliseconds for readiness health check. Default is 5000ms.";
+  private static final int HEALTH_READINESS_TIMEOUT_MS_DEFAULT = 5000;
+
+  public static final String HEALTH_KAFKA_TIMEOUT_MS_CONFIG = "health.kafka.timeout.ms";
+  private static final String HEALTH_KAFKA_TIMEOUT_MS_DOC =
+      "Timeout in milliseconds for Kafka connectivity health check. Default is 5000ms.";
+  private static final int HEALTH_KAFKA_TIMEOUT_MS_DEFAULT = 5000;
+
+  public static final String HEALTH_SCHEMA_REGISTRY_TIMEOUT_MS_CONFIG =
+      "health.schema.registry.timeout.ms";
+  private static final String HEALTH_SCHEMA_REGISTRY_TIMEOUT_MS_DOC =
+      "Timeout in milliseconds for Schema Registry health check. Default is 5000ms.";
+  private static final int HEALTH_SCHEMA_REGISTRY_TIMEOUT_MS_DEFAULT = 5000;
+
+  public static final String HEALTH_KAFKA_ENABLED_CONFIG = "health.kafka.enabled";
+  private static final String HEALTH_KAFKA_ENABLED_DOC =
+      "Whether to enable Kafka connectivity health check. Default is true.";
+  private static final boolean HEALTH_KAFKA_ENABLED_DEFAULT = true;
+
+  public static final String HEALTH_SCHEMA_REGISTRY_ENABLED_CONFIG =
+      "health.schema.registry.enabled";
+  private static final String HEALTH_SCHEMA_REGISTRY_ENABLED_DOC =
+      "Whether to enable Schema Registry health check. Default is true.";
+  private static final boolean HEALTH_SCHEMA_REGISTRY_ENABLED_DEFAULT = true;
+
   private static final ConfigDef config;
   private volatile Metrics metrics;
 
@@ -913,7 +940,37 @@ public class KafkaRestConfig extends RestConfig {
             Type.BOOLEAN,
             NULL_REQUEST_BODY_ALWAYS_PUBLISH_EMPTY_RECORD_DEFAULT,
             Importance.LOW,
-            NULL_REQUEST_BODY_ALWAYS_PUBLISH_EMPTY_RECORD_DOC);
+            NULL_REQUEST_BODY_ALWAYS_PUBLISH_EMPTY_RECORD_DOC)
+        .define(
+            HEALTH_READINESS_TIMEOUT_MS_CONFIG,
+            Type.INT,
+            HEALTH_READINESS_TIMEOUT_MS_DEFAULT,
+            Importance.LOW,
+            HEALTH_READINESS_TIMEOUT_MS_DOC)
+        .define(
+            HEALTH_KAFKA_TIMEOUT_MS_CONFIG,
+            Type.INT,
+            HEALTH_KAFKA_TIMEOUT_MS_DEFAULT,
+            Importance.LOW,
+            HEALTH_KAFKA_TIMEOUT_MS_DOC)
+        .define(
+            HEALTH_SCHEMA_REGISTRY_TIMEOUT_MS_CONFIG,
+            Type.INT,
+            HEALTH_SCHEMA_REGISTRY_TIMEOUT_MS_DEFAULT,
+            Importance.LOW,
+            HEALTH_SCHEMA_REGISTRY_TIMEOUT_MS_DOC)
+        .define(
+            HEALTH_KAFKA_ENABLED_CONFIG,
+            Type.BOOLEAN,
+            HEALTH_KAFKA_ENABLED_DEFAULT,
+            Importance.LOW,
+            HEALTH_KAFKA_ENABLED_DOC)
+        .define(
+            HEALTH_SCHEMA_REGISTRY_ENABLED_CONFIG,
+            Type.BOOLEAN,
+            HEALTH_SCHEMA_REGISTRY_ENABLED_DEFAULT,
+            Importance.LOW,
+            HEALTH_SCHEMA_REGISTRY_ENABLED_DOC);
   }
 
   private static Properties getPropsFromFile(String propsFile) throws RestConfigException {
@@ -1223,6 +1280,26 @@ public class KafkaRestConfig extends RestConfig {
 
   public final boolean isNullRequestBodyAlwaysPublishEmptyRecordEnabled() {
     return getBoolean(NULL_REQUEST_BODY_ALWAYS_PUBLISH_EMPTY_RECORD_CONFIG);
+  }
+
+  public final int getHealthReadinessTimeoutMs() {
+    return getInt(HEALTH_READINESS_TIMEOUT_MS_CONFIG);
+  }
+
+  public final int getHealthKafkaTimeoutMs() {
+    return getInt(HEALTH_KAFKA_TIMEOUT_MS_CONFIG);
+  }
+
+  public final int getHealthSchemaRegistryTimeoutMs() {
+    return getInt(HEALTH_SCHEMA_REGISTRY_TIMEOUT_MS_CONFIG);
+  }
+
+  public final boolean isHealthKafkaEnabled() {
+    return getBoolean(HEALTH_KAFKA_ENABLED_CONFIG);
+  }
+
+  public final boolean isHealthSchemaRegistryEnabled() {
+    return getBoolean(HEALTH_SCHEMA_REGISTRY_ENABLED_CONFIG);
   }
 
   public final ImmutableMap<String, Integer> getRateLimitCosts() {
