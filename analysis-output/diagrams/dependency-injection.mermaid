@@ -1,0 +1,63 @@
+%% Kafka REST Proxy - HK2 Dependency Injection
+%% Commit: 28ae7f33556978fa8ee59bab75b27301d1222622
+
+graph TD
+    subgraph "Application Bootstrap"
+        A[KafkaRestApplication]
+    end
+
+    subgraph "DI Modules"
+        B[BackendsModule]
+        C[ConfigModule]
+        D[ControllersModule]
+        E[ExceptionsModule]
+        F[ResponseModule]
+        G[RateLimitFeature]
+        H[ResourcesFeature]
+    end
+
+    subgraph "Bindings"
+        B1[Admin Client<br/>Singleton]
+        B2[Producer<br/>Singleton]
+        B3[KafkaRestContext<br/>Singleton]
+
+        C1[Config Properties<br/>Instance]
+
+        D1[TopicManager<br/>Interface → Impl]
+        D2[ProduceController<br/>Interface → Impl]
+        D3[SchemaManager<br/>Interface → Impl]
+
+        H1[V2ResourcesFeature]
+        H2[V3ResourcesFeature]
+    end
+
+    A --> B
+    A --> C
+    A --> D
+    A --> E
+    A --> F
+    A --> G
+    A --> H
+
+    B --> B1
+    B --> B2
+    B --> B3
+
+    C --> C1
+
+    D --> D1
+    D --> D2
+    D --> D3
+
+    H --> H1
+    H --> H2
+
+    subgraph "Injection Points"
+        I1["@Inject Provider<TopicManager>"]
+        I2["@Inject Provider<Admin>"]
+        I3["@HostNameConfig String"]
+    end
+
+    D1 --> I1
+    B1 --> I2
+    C1 --> I3

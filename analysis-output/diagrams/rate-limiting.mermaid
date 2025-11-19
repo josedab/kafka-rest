@@ -1,0 +1,35 @@
+%% Kafka REST Proxy - Rate Limiting Architecture
+%% Commit: 28ae7f33556978fa8ee59bab75b27301d1222622
+
+flowchart TD
+    subgraph "Request Processing"
+        A[HTTP Request] --> B{Global Rate Limiter}
+        B -->|Allowed| C{Fixed Cost Rate Limiter}
+        B -->|Exceeded| X[429 Too Many Requests]
+
+        C -->|Allowed| D{Per-Cluster Rate Limiter}
+        C -->|Exceeded| X
+
+        D -->|Allowed| E{Produce Rate Limiter}
+        D -->|Exceeded| X
+
+        E -->|Allowed| F[Process Request]
+        E -->|Exceeded| X
+    end
+
+    subgraph "Rate Limiter Backends"
+        G[Guava RateLimiter<br/>Token Bucket]
+        H[Resilience4J<br/>Fixed Window]
+        I[Redis<br/>Distributed]
+    end
+
+    subgraph "Configuration"
+        J["rate.limit.enable=true<br/>rate.limit.permits.per.sec=100<br/>rate.limit.backend=guava"]
+    end
+
+    B -.-> G
+    C -.-> G
+    D -.-> G
+    E -.-> G
+
+    J -.-> B

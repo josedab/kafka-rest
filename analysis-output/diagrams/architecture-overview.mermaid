@@ -1,0 +1,71 @@
+%% Kafka REST Proxy - Architecture Overview
+%% Commit: 28ae7f33556978fa8ee59bab75b27301d1222622
+
+graph TD
+    subgraph "Client Layer"
+        C1[HTTP Client]
+        C2[curl/wget]
+        C3[Application]
+    end
+
+    subgraph "REST Proxy"
+        subgraph "Resource Layer"
+            R1[V2 Resources]
+            R2[V3 Resources]
+            R3[Health Endpoints]
+        end
+
+        subgraph "Middleware"
+            M1[Rate Limiter]
+            M2[Exception Mapper]
+            M3[Access Control]
+        end
+
+        subgraph "Controller Layer"
+            CT1[TopicManager]
+            CT2[BrokerManager]
+            CT3[ProduceController]
+            CT4[ConsumerManager]
+            CT5[SchemaManager]
+        end
+
+        subgraph "Backend Layer"
+            B1[Admin Client]
+            B2[Producer]
+            B3[Consumer]
+            B4[SR Client]
+        end
+    end
+
+    subgraph "External Systems"
+        K[Kafka Cluster]
+        SR[Schema Registry]
+    end
+
+    C1 --> M1
+    C2 --> M1
+    C3 --> M1
+
+    M1 --> R1
+    M1 --> R2
+    M1 --> R3
+
+    R1 --> M2
+    R2 --> M2
+
+    M2 --> CT1
+    M2 --> CT2
+    M2 --> CT3
+    M2 --> CT4
+    M2 --> CT5
+
+    CT1 --> B1
+    CT2 --> B1
+    CT3 --> B2
+    CT4 --> B3
+    CT5 --> B4
+
+    B1 --> K
+    B2 --> K
+    B3 --> K
+    B4 --> SR

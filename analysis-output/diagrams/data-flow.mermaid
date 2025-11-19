@@ -1,0 +1,42 @@
+%% Kafka REST Proxy - Data Flow
+%% Commit: 28ae7f33556978fa8ee59bab75b27301d1222622
+
+sequenceDiagram
+    participant Client
+    participant RateLimit as Rate Limiter
+    participant Resource as REST Resource
+    participant Controller as Controller
+    participant Schema as Schema Manager
+    participant SR as Schema Registry
+    participant Backend as Kafka Backend
+    participant Kafka as Kafka Broker
+
+    Note over Client,Kafka: Produce Flow (V3 API)
+
+    Client->>RateLimit: POST /v3/clusters/.../records
+    RateLimit->>RateLimit: Check global limits
+    RateLimit->>RateLimit: Check per-cluster limits
+
+    alt Rate limit exceeded
+        RateLimit-->>Client: 429 Too Many Requests
+    end
+
+    RateLimit->>Resource: ProduceAction.produce()
+    Resource->>Resource: Parse ProduceRequest
+
+    alt Schema-based format
+        Resource->>Schema: getSchema(subject, ...)
+        Schema->>SR: GET /subjects/{subject}/versions/latest
+        SR-->>Schema: Schema definition
+        Schema-->>Resource: RegisteredSchema
+        Resource->>Resource: Serialize with schema
+    end
+
+    Resource->>Controller: produce(clusterId, topic, ...)
+    Controller->>Backend: getProducer()
+    Backend-->>Controller: Producer<byte[], byte[]>
+    Controller->>Kafka: producer.send(record)
+
+    Kafka-->>Controller: RecordMetadata
+    Controller-->>Resource: ProduceResult
+    Resource-->>Client: Streaming JSON response
