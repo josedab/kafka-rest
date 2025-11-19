@@ -19,11 +19,13 @@ import static java.util.Objects.requireNonNull;
 
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import io.confluent.kafka.serializers.subject.strategy.SubjectNameStrategy;
+import io.confluent.kafkarest.KafkaRestConfig;
 import io.confluent.kafkarest.config.ConfigModule.AvroSerializerConfigs;
 import io.confluent.kafkarest.config.ConfigModule.JsonschemaSerializerConfigs;
 import io.confluent.kafkarest.config.ConfigModule.NullRequestBodyAlwaysPublishEmptyRecordEnabledConfig;
 import io.confluent.kafkarest.config.ConfigModule.ProtobufSerializerConfigs;
 import jakarta.inject.Inject;
+import jakarta.inject.Provider;
 import jakarta.inject.Singleton;
 import java.util.Map;
 import java.util.Optional;
@@ -107,19 +109,37 @@ public final class ControllersModule extends AbstractBinder {
 
     private final Optional<SchemaRegistryClient> schemaRegistryClient;
     private final SubjectNameStrategy defaultSubjectNameStrategy;
+    private final Provider<KafkaRestConfig> configProvider;
 
     @Inject
     private SchemaManagerFactory(
         Optional<SchemaRegistryClient> schemaRegistryClient,
-        SubjectNameStrategy defaultSubjectNameStrategy) {
+        SubjectNameStrategy defaultSubjectNameStrategy,
+        Provider<KafkaRestConfig> configProvider) {
       this.schemaRegistryClient = requireNonNull(schemaRegistryClient);
       this.defaultSubjectNameStrategy = requireNonNull(defaultSubjectNameStrategy);
+      this.configProvider = requireNonNull(configProvider);
     }
 
     @Override
     public SchemaManager provide() {
       if (schemaRegistryClient.isPresent()) {
-        return new SchemaManagerImpl(schemaRegistryClient.get(), defaultSubjectNameStrategy);
+        SchemaManager baseManager =
+            new SchemaManagerImpl(schemaRegistryClient.get(), defaultSubjectNameStrategy);
+
+        KafkaRestConfig config = configProvider.get();
+        if (config.isSchemaRegistryCircuitBreakerEnabled()) {
+          return new ResilientSchemaManager(
+              baseManager,
+              config.getSchemaRegistryCircuitBreakerFailureRateThreshold(),
+              config.getSchemaRegistryCircuitBreakerWaitDuration(),
+              config.getSchemaRegistryCircuitBreakerHalfOpenCalls(),
+              config.getSchemaRegistryCircuitBreakerSlidingWindowSize(),
+              config.getSchemaRegistryCircuitBreakerMinCalls(),
+              config.getSchemaRegistryCircuitBreakerCacheSize());
+        }
+
+        return baseManager;
       } else {
         return new SchemaManagerThrowing();
       }

@@ -586,4 +586,47 @@ public class KafkaRestConfigTest {
   private String reporter_config(String suffix) {
     return KafkaRestConfig.TELEMETRY_PREFIX + suffix;
   }
+
+  @Test
+  public void testCircuitBreakerConfig_defaults() {
+    Properties properties = new Properties();
+    KafkaRestConfig config = new KafkaRestConfig(properties);
+
+    assertEquals(false, config.isSchemaRegistryCircuitBreakerEnabled());
+    assertEquals(50, config.getSchemaRegistryCircuitBreakerFailureRateThreshold());
+    assertEquals(30000, config.getSchemaRegistryCircuitBreakerWaitDuration().toMillis());
+    assertEquals(5, config.getSchemaRegistryCircuitBreakerHalfOpenCalls());
+    assertEquals(20, config.getSchemaRegistryCircuitBreakerSlidingWindowSize());
+    assertEquals(10, config.getSchemaRegistryCircuitBreakerMinCalls());
+    assertEquals(10000, config.getSchemaRegistryCircuitBreakerCacheSize());
+  }
+
+  @Test
+  public void testCircuitBreakerConfig_customValues() {
+    Properties properties = new Properties();
+    properties.put(
+        KafkaRestConfig.SCHEMA_REGISTRY_CIRCUIT_BREAKER_ENABLED_CONFIG, "true");
+    properties.put(
+        KafkaRestConfig.SCHEMA_REGISTRY_CIRCUIT_BREAKER_FAILURE_RATE_THRESHOLD_CONFIG, "75");
+    properties.put(
+        KafkaRestConfig.SCHEMA_REGISTRY_CIRCUIT_BREAKER_WAIT_DURATION_MS_CONFIG, "60000");
+    properties.put(
+        KafkaRestConfig.SCHEMA_REGISTRY_CIRCUIT_BREAKER_HALF_OPEN_CALLS_CONFIG, "10");
+    properties.put(
+        KafkaRestConfig.SCHEMA_REGISTRY_CIRCUIT_BREAKER_SLIDING_WINDOW_SIZE_CONFIG, "50");
+    properties.put(
+        KafkaRestConfig.SCHEMA_REGISTRY_CIRCUIT_BREAKER_MIN_CALLS_CONFIG, "20");
+    properties.put(
+        KafkaRestConfig.SCHEMA_REGISTRY_CIRCUIT_BREAKER_CACHE_SIZE_CONFIG, "5000");
+
+    KafkaRestConfig config = new KafkaRestConfig(properties);
+
+    assertEquals(true, config.isSchemaRegistryCircuitBreakerEnabled());
+    assertEquals(75, config.getSchemaRegistryCircuitBreakerFailureRateThreshold());
+    assertEquals(60000, config.getSchemaRegistryCircuitBreakerWaitDuration().toMillis());
+    assertEquals(10, config.getSchemaRegistryCircuitBreakerHalfOpenCalls());
+    assertEquals(50, config.getSchemaRegistryCircuitBreakerSlidingWindowSize());
+    assertEquals(20, config.getSchemaRegistryCircuitBreakerMinCalls());
+    assertEquals(5000, config.getSchemaRegistryCircuitBreakerCacheSize());
+  }
 }

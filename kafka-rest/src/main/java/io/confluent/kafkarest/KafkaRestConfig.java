@@ -510,6 +510,66 @@ public class KafkaRestConfig extends RestConfig {
           + "scenario is the default. This configuration property enables the old behaviour.";
   private static final boolean NULL_REQUEST_BODY_ALWAYS_PUBLISH_EMPTY_RECORD_DEFAULT = false;
 
+  // Schema Registry Circuit Breaker configurations
+  public static final String SCHEMA_REGISTRY_CIRCUIT_BREAKER_ENABLED_CONFIG =
+      "schema.registry.circuit.breaker.enabled";
+  private static final String SCHEMA_REGISTRY_CIRCUIT_BREAKER_ENABLED_DOC =
+      "Whether to enable the circuit breaker for Schema Registry calls. "
+          + "When enabled, the circuit breaker will prevent cascading failures when Schema Registry "
+          + "is unavailable or slow. Default is false.";
+  private static final boolean SCHEMA_REGISTRY_CIRCUIT_BREAKER_ENABLED_DEFAULT = false;
+
+  public static final String SCHEMA_REGISTRY_CIRCUIT_BREAKER_FAILURE_RATE_THRESHOLD_CONFIG =
+      "schema.registry.circuit.breaker.failure.rate.threshold";
+  private static final String SCHEMA_REGISTRY_CIRCUIT_BREAKER_FAILURE_RATE_THRESHOLD_DOC =
+      "The failure rate threshold percentage. When the failure rate is equal or greater than this "
+          + "threshold, the circuit breaker transitions to open state. Default is 50.";
+  private static final int SCHEMA_REGISTRY_CIRCUIT_BREAKER_FAILURE_RATE_THRESHOLD_DEFAULT = 50;
+  public static final ConfigDef.Range SCHEMA_REGISTRY_CIRCUIT_BREAKER_FAILURE_RATE_THRESHOLD_VALIDATOR =
+      ConfigDef.Range.between(1, 100);
+
+  public static final String SCHEMA_REGISTRY_CIRCUIT_BREAKER_WAIT_DURATION_MS_CONFIG =
+      "schema.registry.circuit.breaker.wait.duration.ms";
+  private static final String SCHEMA_REGISTRY_CIRCUIT_BREAKER_WAIT_DURATION_MS_DOC =
+      "The time in milliseconds the circuit breaker should wait before transitioning from open to "
+          + "half-open state. Default is 30000ms (30 seconds).";
+  private static final long SCHEMA_REGISTRY_CIRCUIT_BREAKER_WAIT_DURATION_MS_DEFAULT = 30000;
+
+  public static final String SCHEMA_REGISTRY_CIRCUIT_BREAKER_HALF_OPEN_CALLS_CONFIG =
+      "schema.registry.circuit.breaker.half.open.calls";
+  private static final String SCHEMA_REGISTRY_CIRCUIT_BREAKER_HALF_OPEN_CALLS_DOC =
+      "The number of permitted calls when the circuit breaker is half-open. Default is 5.";
+  private static final int SCHEMA_REGISTRY_CIRCUIT_BREAKER_HALF_OPEN_CALLS_DEFAULT = 5;
+  public static final ConfigDef.Range SCHEMA_REGISTRY_CIRCUIT_BREAKER_HALF_OPEN_CALLS_VALIDATOR =
+      ConfigDef.Range.between(1, 100);
+
+  public static final String SCHEMA_REGISTRY_CIRCUIT_BREAKER_SLIDING_WINDOW_SIZE_CONFIG =
+      "schema.registry.circuit.breaker.sliding.window.size";
+  private static final String SCHEMA_REGISTRY_CIRCUIT_BREAKER_SLIDING_WINDOW_SIZE_DOC =
+      "The size of the sliding window used to record the outcome of calls when the circuit breaker "
+          + "is closed. Default is 20.";
+  private static final int SCHEMA_REGISTRY_CIRCUIT_BREAKER_SLIDING_WINDOW_SIZE_DEFAULT = 20;
+  public static final ConfigDef.Range SCHEMA_REGISTRY_CIRCUIT_BREAKER_SLIDING_WINDOW_SIZE_VALIDATOR =
+      ConfigDef.Range.between(1, 1000);
+
+  public static final String SCHEMA_REGISTRY_CIRCUIT_BREAKER_MIN_CALLS_CONFIG =
+      "schema.registry.circuit.breaker.minimum.calls";
+  private static final String SCHEMA_REGISTRY_CIRCUIT_BREAKER_MIN_CALLS_DOC =
+      "The minimum number of calls required before the circuit breaker can calculate the failure rate. "
+          + "Default is 10.";
+  private static final int SCHEMA_REGISTRY_CIRCUIT_BREAKER_MIN_CALLS_DEFAULT = 10;
+  public static final ConfigDef.Range SCHEMA_REGISTRY_CIRCUIT_BREAKER_MIN_CALLS_VALIDATOR =
+      ConfigDef.Range.between(1, 1000);
+
+  public static final String SCHEMA_REGISTRY_CIRCUIT_BREAKER_CACHE_SIZE_CONFIG =
+      "schema.registry.circuit.breaker.cache.size";
+  private static final String SCHEMA_REGISTRY_CIRCUIT_BREAKER_CACHE_SIZE_DOC =
+      "The maximum number of schemas to cache locally. This cache is used to serve requests when "
+          + "Schema Registry is available without making remote calls. Default is 10000.";
+  private static final int SCHEMA_REGISTRY_CIRCUIT_BREAKER_CACHE_SIZE_DEFAULT = 10000;
+  public static final ConfigDef.Range SCHEMA_REGISTRY_CIRCUIT_BREAKER_CACHE_SIZE_VALIDATOR =
+      ConfigDef.Range.between(0, 1000000);
+
   private static final ConfigDef config;
   private volatile Metrics metrics;
 
@@ -913,7 +973,54 @@ public class KafkaRestConfig extends RestConfig {
             Type.BOOLEAN,
             NULL_REQUEST_BODY_ALWAYS_PUBLISH_EMPTY_RECORD_DEFAULT,
             Importance.LOW,
-            NULL_REQUEST_BODY_ALWAYS_PUBLISH_EMPTY_RECORD_DOC);
+            NULL_REQUEST_BODY_ALWAYS_PUBLISH_EMPTY_RECORD_DOC)
+        .define(
+            SCHEMA_REGISTRY_CIRCUIT_BREAKER_ENABLED_CONFIG,
+            Type.BOOLEAN,
+            SCHEMA_REGISTRY_CIRCUIT_BREAKER_ENABLED_DEFAULT,
+            Importance.LOW,
+            SCHEMA_REGISTRY_CIRCUIT_BREAKER_ENABLED_DOC)
+        .define(
+            SCHEMA_REGISTRY_CIRCUIT_BREAKER_FAILURE_RATE_THRESHOLD_CONFIG,
+            Type.INT,
+            SCHEMA_REGISTRY_CIRCUIT_BREAKER_FAILURE_RATE_THRESHOLD_DEFAULT,
+            SCHEMA_REGISTRY_CIRCUIT_BREAKER_FAILURE_RATE_THRESHOLD_VALIDATOR,
+            Importance.LOW,
+            SCHEMA_REGISTRY_CIRCUIT_BREAKER_FAILURE_RATE_THRESHOLD_DOC)
+        .define(
+            SCHEMA_REGISTRY_CIRCUIT_BREAKER_WAIT_DURATION_MS_CONFIG,
+            Type.LONG,
+            SCHEMA_REGISTRY_CIRCUIT_BREAKER_WAIT_DURATION_MS_DEFAULT,
+            Importance.LOW,
+            SCHEMA_REGISTRY_CIRCUIT_BREAKER_WAIT_DURATION_MS_DOC)
+        .define(
+            SCHEMA_REGISTRY_CIRCUIT_BREAKER_HALF_OPEN_CALLS_CONFIG,
+            Type.INT,
+            SCHEMA_REGISTRY_CIRCUIT_BREAKER_HALF_OPEN_CALLS_DEFAULT,
+            SCHEMA_REGISTRY_CIRCUIT_BREAKER_HALF_OPEN_CALLS_VALIDATOR,
+            Importance.LOW,
+            SCHEMA_REGISTRY_CIRCUIT_BREAKER_HALF_OPEN_CALLS_DOC)
+        .define(
+            SCHEMA_REGISTRY_CIRCUIT_BREAKER_SLIDING_WINDOW_SIZE_CONFIG,
+            Type.INT,
+            SCHEMA_REGISTRY_CIRCUIT_BREAKER_SLIDING_WINDOW_SIZE_DEFAULT,
+            SCHEMA_REGISTRY_CIRCUIT_BREAKER_SLIDING_WINDOW_SIZE_VALIDATOR,
+            Importance.LOW,
+            SCHEMA_REGISTRY_CIRCUIT_BREAKER_SLIDING_WINDOW_SIZE_DOC)
+        .define(
+            SCHEMA_REGISTRY_CIRCUIT_BREAKER_MIN_CALLS_CONFIG,
+            Type.INT,
+            SCHEMA_REGISTRY_CIRCUIT_BREAKER_MIN_CALLS_DEFAULT,
+            SCHEMA_REGISTRY_CIRCUIT_BREAKER_MIN_CALLS_VALIDATOR,
+            Importance.LOW,
+            SCHEMA_REGISTRY_CIRCUIT_BREAKER_MIN_CALLS_DOC)
+        .define(
+            SCHEMA_REGISTRY_CIRCUIT_BREAKER_CACHE_SIZE_CONFIG,
+            Type.INT,
+            SCHEMA_REGISTRY_CIRCUIT_BREAKER_CACHE_SIZE_DEFAULT,
+            SCHEMA_REGISTRY_CIRCUIT_BREAKER_CACHE_SIZE_VALIDATOR,
+            Importance.LOW,
+            SCHEMA_REGISTRY_CIRCUIT_BREAKER_CACHE_SIZE_DOC);
   }
 
   private static Properties getPropsFromFile(String propsFile) throws RestConfigException {
@@ -1223,6 +1330,34 @@ public class KafkaRestConfig extends RestConfig {
 
   public final boolean isNullRequestBodyAlwaysPublishEmptyRecordEnabled() {
     return getBoolean(NULL_REQUEST_BODY_ALWAYS_PUBLISH_EMPTY_RECORD_CONFIG);
+  }
+
+  public final boolean isSchemaRegistryCircuitBreakerEnabled() {
+    return getBoolean(SCHEMA_REGISTRY_CIRCUIT_BREAKER_ENABLED_CONFIG);
+  }
+
+  public final int getSchemaRegistryCircuitBreakerFailureRateThreshold() {
+    return getInt(SCHEMA_REGISTRY_CIRCUIT_BREAKER_FAILURE_RATE_THRESHOLD_CONFIG);
+  }
+
+  public final Duration getSchemaRegistryCircuitBreakerWaitDuration() {
+    return Duration.ofMillis(getLong(SCHEMA_REGISTRY_CIRCUIT_BREAKER_WAIT_DURATION_MS_CONFIG));
+  }
+
+  public final int getSchemaRegistryCircuitBreakerHalfOpenCalls() {
+    return getInt(SCHEMA_REGISTRY_CIRCUIT_BREAKER_HALF_OPEN_CALLS_CONFIG);
+  }
+
+  public final int getSchemaRegistryCircuitBreakerSlidingWindowSize() {
+    return getInt(SCHEMA_REGISTRY_CIRCUIT_BREAKER_SLIDING_WINDOW_SIZE_CONFIG);
+  }
+
+  public final int getSchemaRegistryCircuitBreakerMinCalls() {
+    return getInt(SCHEMA_REGISTRY_CIRCUIT_BREAKER_MIN_CALLS_CONFIG);
+  }
+
+  public final int getSchemaRegistryCircuitBreakerCacheSize() {
+    return getInt(SCHEMA_REGISTRY_CIRCUIT_BREAKER_CACHE_SIZE_CONFIG);
   }
 
   public final ImmutableMap<String, Integer> getRateLimitCosts() {

@@ -81,6 +81,7 @@
 
   <!-- common external library dependencies -->
   <allow pkg="com.fasterxml.jackson" />
+  <allow pkg="com.github.benmanes.caffeine" />
   <allow pkg="com.google.auto.value" />
   <allow pkg="com.google.common" />
   <allow pkg="com.google.protobuf" />
