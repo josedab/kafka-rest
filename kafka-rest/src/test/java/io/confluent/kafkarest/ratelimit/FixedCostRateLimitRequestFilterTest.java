@@ -27,9 +27,8 @@ import static org.easymock.EasyMock.replay;
 import static org.easymock.EasyMock.verify;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import com.google.common.cache.LoadingCache;
+import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.util.concurrent.UncheckedExecutionException;
 import jakarta.ws.rs.container.ContainerRequestContext;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.UriInfo;
@@ -107,7 +106,7 @@ class FixedCostRateLimitRequestFilterTest {
   }
 
   @Test
-  void filter_requestContainsClusterId__throwUncheckedExecutionException() {
+  void filter_requestContainsClusterId__throwRuntimeException() {
     // prepare
     RequestRateLimiter genericRateLimiter = mock(RequestRateLimiter.class);
     LoadingCache<String, RequestRateLimiter> perClusterRateLimiterCache = mock(LoadingCache.class);
@@ -117,8 +116,8 @@ class FixedCostRateLimitRequestFilterTest {
     expect(mockUriInfo.getPathParameters(anyBoolean()))
         .andReturn(new MultivaluedHashMap<>(ImmutableMap.of("clusterId", CLUSTER_ID)));
     expect(requestContext.getUriInfo()).andReturn(mockUriInfo);
-    expect(perClusterRateLimiterCache.getUnchecked(CLUSTER_ID))
-        .andThrow(new UncheckedExecutionException("Something went wrong", new Exception()));
+    expect(perClusterRateLimiterCache.get(CLUSTER_ID))
+        .andThrow(new RuntimeException("Something went wrong"));
 
     replay(requestContext, mockUriInfo, genericRateLimiter, perClusterRateLimiterCache);
 
@@ -126,7 +125,7 @@ class FixedCostRateLimitRequestFilterTest {
         new FixedCostRateLimitRequestFilter(genericRateLimiter, 1, perClusterRateLimiterCache);
     // act
     assertThrows(
-        UncheckedExecutionException.class,
+        RuntimeException.class,
         () -> fixedCostRateLimitRequestFilter.filter(requestContext));
 
     // check
@@ -145,7 +144,7 @@ class FixedCostRateLimitRequestFilterTest {
     expect(mockUriInfo.getPathParameters(anyBoolean()))
         .andReturn(new MultivaluedHashMap<>(ImmutableMap.of("clusterId", CLUSTER_ID)));
     expect(requestContext.getUriInfo()).andReturn(mockUriInfo);
-    expect(perClusterRateLimiterCache.getUnchecked(CLUSTER_ID)).andReturn(cachedRateLimiter);
+    expect(perClusterRateLimiterCache.get(CLUSTER_ID)).andReturn(cachedRateLimiter);
     cachedRateLimiter.rateLimit(anyInt());
     genericRateLimiter.rateLimit(anyInt());
 
@@ -182,7 +181,7 @@ class FixedCostRateLimitRequestFilterTest {
     expect(mockUriInfo.getPathParameters(anyBoolean()))
         .andReturn(new MultivaluedHashMap<>(ImmutableMap.of("clusterId", CLUSTER_ID)));
     expect(requestContext.getUriInfo()).andReturn(mockUriInfo);
-    expect(perClusterRateLimiterCache.getUnchecked(CLUSTER_ID)).andReturn(cachedRateLimiter);
+    expect(perClusterRateLimiterCache.get(CLUSTER_ID)).andReturn(cachedRateLimiter);
     cachedRateLimiter.rateLimit(anyInt());
     expectLastCall().andThrow(new RateLimitExceededException());
     requestContext.setProperty(REST_ERROR_CODE, PERMITS_MAX_PER_CLUSTER_LIMIT_EXCEEDED);
@@ -223,7 +222,7 @@ class FixedCostRateLimitRequestFilterTest {
     expect(mockUriInfo.getPathParameters(anyBoolean()))
         .andReturn(new MultivaluedHashMap<>(ImmutableMap.of("clusterId", CLUSTER_ID)));
     expect(requestContext.getUriInfo()).andReturn(mockUriInfo);
-    expect(perClusterRateLimiterCache.getUnchecked(CLUSTER_ID)).andReturn(cachedRateLimiter);
+    expect(perClusterRateLimiterCache.get(CLUSTER_ID)).andReturn(cachedRateLimiter);
     cachedRateLimiter.rateLimit(anyInt());
     // cluster rate limit pass but generic rate limit fail
     genericRateLimiter.rateLimit(anyInt());

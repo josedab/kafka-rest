@@ -92,6 +92,10 @@
             <artifactId>resilience4j-ratelimiter</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+        </dependency>
+        <dependency>
             <groupId>io.confluent</groupId>
             <artifactId>rest-utils-test</artifactId>
             <version>${io.confluent.rest-utils.version}</version>

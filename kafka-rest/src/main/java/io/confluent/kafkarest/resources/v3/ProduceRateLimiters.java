@@ -18,8 +18,9 @@ package io.confluent.kafkarest.resources.v3;
 import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
 
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.LoadingCache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.LoadingCache;
+import com.github.benmanes.caffeine.cache.stats.CacheStats;
 import io.confluent.kafkarest.config.ConfigModule.ProduceRateLimitCacheExpiryConfig;
 import io.confluent.kafkarest.config.ConfigModule.ProduceRateLimitEnabledConfig;
 import io.confluent.kafkarest.ratelimit.RateLimitExceededException;
@@ -29,7 +30,6 @@ import io.confluent.kafkarest.ratelimit.RateLimitModule.ProduceRateLimiterBytesG
 import io.confluent.kafkarest.ratelimit.RateLimitModule.ProduceRateLimiterCount;
 import io.confluent.kafkarest.ratelimit.RateLimitModule.ProduceRateLimiterCountGlobal;
 import io.confluent.kafkarest.ratelimit.RequestRateLimiter;
-import io.confluent.kafkarest.ratelimit.RequestRateLimiterCacheLoader;
 import io.confluent.kafkarest.requestlog.CustomLogRequestAttributes;
 import jakarta.inject.Inject;
 import jakarta.inject.Provider;
@@ -37,6 +37,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.time.Duration;
 
 public class ProduceRateLimiters {
+
+  private static final long DEFAULT_CACHE_MAXIMUM_SIZE = 10000;
 
   private final boolean rateLimitingEnabled;
   private final LoadingCache<String, RequestRateLimiter> countCache;
@@ -57,13 +59,17 @@ public class ProduceRateLimiters {
     this.bytesLimiterGlobal = requireNonNull(bytesLimiterGlobal);
 
     countCache =
-        CacheBuilder.newBuilder()
+        Caffeine.newBuilder()
             .expireAfterAccess(produceRateLimitCacheExpiryConfig)
-            .build(new RequestRateLimiterCacheLoader(countLimiterProvider));
+            .maximumSize(DEFAULT_CACHE_MAXIMUM_SIZE)
+            .recordStats()
+            .build(key -> countLimiterProvider.get());
     bytesCache =
-        CacheBuilder.newBuilder()
+        Caffeine.newBuilder()
             .expireAfterAccess(produceRateLimitCacheExpiryConfig)
-            .build(new RequestRateLimiterCacheLoader(bytesLimiterProvider));
+            .maximumSize(DEFAULT_CACHE_MAXIMUM_SIZE)
+            .recordStats()
+            .build(key -> bytesLimiterProvider.get());
   }
 
   public void rateLimit(String clusterId, long requestSize, HttpServletRequest httpServletRequest) {
@@ -92,8 +98,8 @@ public class ProduceRateLimiters {
     }
 
     // Apply tenant specific rate-limits
-    RequestRateLimiter countRateLimiter = countCache.getUnchecked(clusterId);
-    RequestRateLimiter byteRateLimiter = bytesCache.getUnchecked(clusterId);
+    RequestRateLimiter countRateLimiter = countCache.get(clusterId);
+    RequestRateLimiter byteRateLimiter = bytesCache.get(clusterId);
     try {
       countRateLimiter.rateLimit(1);
     } catch (RateLimitExceededException ex) {
@@ -115,5 +121,19 @@ public class ProduceRateLimiters {
   public void clear() {
     countCache.invalidateAll();
     bytesCache.invalidateAll();
+  }
+
+  /**
+   * Returns the cache statistics for the count limiter cache.
+   */
+  public CacheStats getCountCacheStats() {
+    return countCache.stats();
+  }
+
+  /**
+   * Returns the cache statistics for the bytes limiter cache.
+   */
+  public CacheStats getBytesCacheStats() {
+    return bytesCache.stats();
   }
 }

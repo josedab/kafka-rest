@@ -20,7 +20,7 @@ import static io.confluent.kafkarest.ratelimit.RateLimitExceededException.ErrorC
 import static io.confluent.kafkarest.ratelimit.RateLimitExceededException.ErrorCodes.PERMITS_MAX_PER_CLUSTER_LIMIT_EXCEEDED;
 import static java.util.Objects.requireNonNull;
 
-import com.google.common.cache.LoadingCache;
+import com.github.benmanes.caffeine.cache.LoadingCache;
 import io.confluent.kafkarest.requestlog.CustomLogRequestAttributes;
 import jakarta.ws.rs.container.ContainerRequestContext;
 import jakarta.ws.rs.container.ContainerRequestFilter;
@@ -52,7 +52,7 @@ final class FixedCostRateLimitRequestFilter implements ContainerRequestFilter {
     // apply per cluster rate limiter
     String clusterId = requestContext.getUriInfo().getPathParameters(true).getFirst("clusterId");
     if (clusterId != null) {
-      RequestRateLimiter rateLimiter = perClusterRateLimiterCache.getUnchecked(clusterId);
+      RequestRateLimiter rateLimiter = perClusterRateLimiterCache.get(clusterId);
       try {
         rateLimiter.rateLimit(cost);
       } catch (RateLimitExceededException ex) {

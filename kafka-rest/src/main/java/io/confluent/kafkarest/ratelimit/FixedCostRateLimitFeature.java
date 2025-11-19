@@ -17,8 +17,8 @@ package io.confluent.kafkarest.ratelimit;
 
 import static java.util.Objects.requireNonNull;
 
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.LoadingCache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.LoadingCache;
 import io.confluent.kafkarest.config.ConfigModule.RateLimitCostsConfig;
 import io.confluent.kafkarest.config.ConfigModule.RateLimitDefaultCostConfig;
 import io.confluent.kafkarest.config.ConfigModule.RateLimitPerClusterCacheExpiryConfig;
@@ -34,6 +34,8 @@ import java.time.Duration;
 import java.util.Map;
 
 final class FixedCostRateLimitFeature implements DynamicFeature {
+  private static final long DEFAULT_CACHE_MAXIMUM_SIZE = 10000;
+
   private final Map<String, Integer> costs;
   private final int defaultCost;
   private final RequestRateLimiter genericRateLimiter;
@@ -52,9 +54,11 @@ final class FixedCostRateLimitFeature implements DynamicFeature {
     this.defaultCost = defaultCost;
     this.genericRateLimiter = requireNonNull(genericRateLimiter);
     this.perClusterRateLimiterCache =
-        CacheBuilder.newBuilder()
+        Caffeine.newBuilder()
             .expireAfterAccess(rateLimitPerClusterCacheExpiryConfig)
-            .build(new RequestRateLimiterCacheLoader(perClusterRateLimiterProvider));
+            .maximumSize(DEFAULT_CACHE_MAXIMUM_SIZE)
+            .recordStats()
+            .build(key -> perClusterRateLimiterProvider.get());
   }
 
   @Override
